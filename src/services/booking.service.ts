@@ -2,6 +2,8 @@ import Booking from "../models/Booking";
 import {
   CheckAvailabilityDTO,
   AvailabilityResult,
+  BatchAvailabilityDTO,
+  BatchAvailabilityResult,
 } from "../types/booking.types";
 import { ApiError } from "../utils/ApiError";
 
@@ -10,7 +12,7 @@ export class BookingService {
    * Check if a time slot is available for booking
    */
   static async checkAvailability(
-    data: CheckAvailabilityDTO
+    data: CheckAvailabilityDTO,
   ): Promise<AvailabilityResult> {
     const { courtId, bookingDate, startTime, endTime, excludeBookingId } = data;
 
@@ -42,7 +44,7 @@ export class BookingService {
     }
 
     const existingBookings = await Booking.find(query).select(
-      "startTime endTime status"
+      "startTime endTime status",
     );
 
     // Check for conflicts
@@ -61,7 +63,7 @@ export class BookingService {
           crossesMidnight,
           bookingStartMinutes,
           bookingEndMinutes,
-          bookingCrossesMidnight
+          bookingCrossesMidnight,
         )
       ) {
         conflicts.push({
@@ -80,6 +82,105 @@ export class BookingService {
   }
 
   /**
+   * Check availability for multiple courts and time slots in a single call
+   * This is optimized to reduce database queries from N*M to 1
+   */
+  static async checkBatchAvailability(
+    data: BatchAvailabilityDTO,
+  ): Promise<BatchAvailabilityResult> {
+    const { bookingDate, timeSlots, courtIds } = data;
+
+    // Validate time formats
+    for (const slot of timeSlots) {
+      this.validateTimeFormat(slot.startTime);
+      this.validateTimeFormat(slot.endTime);
+    }
+
+    // Normalize booking date to start of day
+    const dateObj = new Date(bookingDate);
+    dateObj.setHours(0, 0, 0, 0);
+
+    // Build query for all bookings on this date
+    const query: any = {
+      bookingDate: dateObj,
+      status: { $nin: ["cancelled"] }, // Exclude cancelled bookings
+    };
+
+    // If specific courts requested, filter by them
+    if (courtIds && courtIds.length > 0) {
+      query.court = { $in: courtIds };
+    }
+
+    // Single database query to fetch all relevant bookings
+    const existingBookings = await Booking.find(query).select(
+      "court startTime endTime status",
+    );
+
+    // Build a map of court -> bookings for faster lookups
+    const courtBookingsMap = new Map<string, typeof existingBookings>();
+    for (const booking of existingBookings) {
+      const courtId = booking.court.toString();
+      if (!courtBookingsMap.has(courtId)) {
+        courtBookingsMap.set(courtId, []);
+      }
+      courtBookingsMap.get(courtId)!.push(booking);
+    }
+
+    // Get all court IDs to check
+    const courtsToCheck = courtIds || Array.from(courtBookingsMap.keys());
+
+    // Build the result object
+    const result: BatchAvailabilityResult = {};
+
+    // Check each court and time slot combination
+    for (const courtId of courtsToCheck) {
+      result[courtId] = {};
+
+      const courtBookings = courtBookingsMap.get(courtId) || [];
+
+      for (const slot of timeSlots) {
+        const timeSlotKey = `${slot.startTime}-${slot.endTime}`;
+
+        // Convert times to minutes
+        const requestStartMinutes = this.timeToMinutes(slot.startTime);
+        const requestEndMinutes = this.timeToMinutes(slot.endTime);
+        const crossesMidnight = requestEndMinutes < requestStartMinutes;
+
+        // Check for conflicts with existing bookings
+        let hasConflict = false;
+        for (const booking of courtBookings) {
+          const bookingStartMinutes = this.timeToMinutes(booking.startTime);
+          const bookingEndMinutes = this.timeToMinutes(booking.endTime);
+          const bookingCrossesMidnight =
+            bookingEndMinutes < bookingStartMinutes;
+
+          if (
+            this.timeSlotsOverlap(
+              requestStartMinutes,
+              requestEndMinutes,
+              crossesMidnight,
+              bookingStartMinutes,
+              bookingEndMinutes,
+              bookingCrossesMidnight,
+            )
+          ) {
+            hasConflict = true;
+            break;
+          }
+        }
+
+        result[courtId][timeSlotKey] = {
+          available: !hasConflict,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        };
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Check if two time slots overlap
    */
   private static timeSlotsOverlap(
@@ -88,7 +189,7 @@ export class BookingService {
     crosses1: boolean,
     start2: number,
     end2: number,
-    crosses2: boolean
+    crosses2: boolean,
   ): boolean {
     // Handle normal case (no midnight crossing)
     if (!crosses1 && !crosses2) {
@@ -119,7 +220,7 @@ export class BookingService {
         crosses2,
         start1,
         end1,
-        crosses1
+        crosses1,
       );
     }
 
@@ -151,7 +252,7 @@ export class BookingService {
   static validateBookingTime(
     startTime: string,
     endTime: string,
-    bookingDate: Date
+    bookingDate: Date,
   ): void {
     // Validate time format
     this.validateTimeFormat(startTime);
@@ -181,7 +282,7 @@ export class BookingService {
     if (durationMinutes % 30 !== 0) {
       throw new ApiError(
         400,
-        "Booking duration must be in 30-minute increments"
+        "Booking duration must be in 30-minute increments",
       );
     }
 
@@ -195,7 +296,7 @@ export class BookingService {
     if (!(startMinutes >= operatingStart || startMinutes < operatingEnd)) {
       throw new ApiError(
         400,
-        "Booking start time must be between 9:00 AM and 4:00 AM"
+        "Booking start time must be between 9:00 AM and 4:00 AM",
       );
     }
 

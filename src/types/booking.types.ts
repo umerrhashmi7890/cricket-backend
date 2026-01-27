@@ -112,3 +112,22 @@ export interface BookingFilters {
   endDate?: string | Date;
   createdBy?: CreatedBy;
 }
+
+export interface BatchAvailabilityDTO {
+  bookingDate: string | Date;
+  timeSlots: Array<{
+    startTime: string;
+    endTime: string;
+  }>;
+  courtIds?: string[]; // Optional: check specific courts, or all active if not provided
+}
+
+export interface BatchAvailabilityResult {
+  [courtId: string]: {
+    [timeSlotKey: string]: {
+      available: boolean;
+      startTime: string;
+      endTime: string;
+    };
+  };
+}

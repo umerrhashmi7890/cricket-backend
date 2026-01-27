@@ -1,6 +1,7 @@
 import express from "express";
 import {
   checkAvailability,
+  checkBatchAvailability,
   createBooking,
   createManualBooking,
   getAllBookings,
@@ -17,6 +18,7 @@ const router = express.Router();
 
 // Public routes
 router.post("/check-availability", checkAvailability);
+router.post("/check-batch-availability", checkBatchAvailability);
 router.post("/", createBooking);
 router.patch("/:id/cancel", cancelBooking); // Public - customer can cancel
 

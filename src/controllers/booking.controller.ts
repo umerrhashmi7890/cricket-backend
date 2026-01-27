@@ -18,6 +18,7 @@ import {
   UpdateBookingStatusDTO,
   UpdatePaymentDTO,
   BookingFilters,
+  BatchAvailabilityDTO,
 } from "../types/booking.types";
 
 /**
@@ -51,6 +52,71 @@ export const checkAvailability = asyncHandler(
       success: true,
       data: result,
       message: "Availability checked successfully",
+    });
+  },
+);
+
+/**
+ * Check batch availability for multiple courts and time slots
+ * Public endpoint - optimized to reduce API calls
+ */
+export const checkBatchAvailability = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { bookingDate, timeSlots, courtIds } =
+      req.body as BatchAvailabilityDTO;
+
+    if (!bookingDate || !timeSlots || timeSlots.length === 0) {
+      throw new BadRequestError("Booking date and time slots are required");
+    }
+
+    // Validate each time slot has startTime and endTime
+    for (const slot of timeSlots) {
+      if (!slot.startTime || !slot.endTime) {
+        throw new BadRequestError(
+          "Each time slot must have startTime and endTime",
+        );
+      }
+    }
+
+    // If courtIds provided, verify they exist
+    if (courtIds && courtIds.length > 0) {
+      const courts = await Court.find({
+        _id: { $in: courtIds },
+        status: "active",
+      });
+      if (courts.length !== courtIds.length) {
+        throw new BadRequestError("One or more courts not found or inactive");
+      }
+    } else {
+      // If no courtIds provided, get all active courts
+      const allCourts = await Court.find({ status: "active" });
+      const allCourtIds = allCourts.map((court) => court._id.toString());
+
+      // Check availability for all active courts
+      const result = await BookingService.checkBatchAvailability({
+        bookingDate,
+        timeSlots,
+        courtIds: allCourtIds,
+      });
+
+      return res.json({
+        success: true,
+        data: result,
+        message: "Batch availability checked successfully",
+      });
+    }
+
+    // Check availability with provided courtIds
+    const result = await BookingService.checkBatchAvailability({
+      bookingDate,
+      timeSlots,
+      courtIds,
+    });
+
+    res.json({
+      success: true,
+      data: result,
+      message: "Batch availability checked successfully",
     });
   },
 );
