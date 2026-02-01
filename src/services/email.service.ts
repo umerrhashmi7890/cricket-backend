@@ -169,8 +169,8 @@ export class EmailService {
       margin: 20px 0;
     }
     .detail-row {
-      display: flex;
-      justify-content: space-between;
+      display: table;
+      width: 100%;
       padding: 10px 0;
       border-bottom: 1px solid #e0e0e0;
     }
@@ -178,12 +178,17 @@ export class EmailService {
       border-bottom: none;
     }
     .detail-label {
+      display: table-cell;
       font-weight: 600;
       color: #666;
+      width: 40%;
+      padding-right: 20px;
     }
     .detail-value {
+      display: table-cell;
       color: #333;
       text-align: right;
+      width: 60%;
     }
     .price-total {
       font-size: 24px;
@@ -686,7 +691,6 @@ export class EmailService {
     try {
       const transporter = this.getTransporter();
       await transporter.verify();
-      console.log("✅ Email service is ready");
       return true;
     } catch (error) {
       console.error("❌ Email service error:", error);

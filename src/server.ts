@@ -95,16 +95,11 @@ const startServer = async () => {
     await connectDatabase();
 
     // Test email service connection
-    console.log("\n📧 Testing email service...");
     await EmailService.testConnection();
 
     // Start listening
     app.listen(PORT, () => {
-      console.log("🚀 =================================");
-      console.log(`🏏 Cricket Booking API Server`);
-      console.log(`📡 Running on: http://localhost:${PORT}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
-      console.log("🚀 =================================");
+      console.log(`\n🚀 Server started on http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error("Failed to start server:", error);

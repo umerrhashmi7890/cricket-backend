@@ -53,11 +53,8 @@ const customerSchema = new Schema<ICustomerDocument>(
         return ret;
       },
     },
-  }
+  },
 );
-
-// Index for faster phone lookups
-customerSchema.index({ phone: 1 });
 
 const Customer = mongoose.model<ICustomerDocument>("Customer", customerSchema);
 

@@ -40,12 +40,11 @@ const courtSchema = new Schema<ICourtDocument>(
         return ret;
       },
     },
-  }
+  },
 );
 
 // Index for faster queries
 courtSchema.index({ status: 1 });
-courtSchema.index({ name: 1 });
 
 const Court = mongoose.model<ICourtDocument>("Court", courtSchema);
 

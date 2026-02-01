@@ -122,13 +122,6 @@ export class PromoCodeService {
       throw new NotFoundError("Promo code");
     }
 
-    console.log(`🔍 Before marking as used:`, {
-      promoCodeId,
-      customerId,
-      currentUsedBy: promoCode.usedByCustomers,
-      currentCount: promoCode.usedByCustomers.length,
-    });
-
     // Check if already used (double-check)
     if (promoCode.usedByCustomers.includes(customerId)) {
       console.warn(
@@ -139,19 +132,7 @@ export class PromoCodeService {
 
     // Add customer to used list
     promoCode.usedByCustomers.push(customerId);
-
-    console.log(`🔍 After adding customer:`, {
-      usedByCustomers: promoCode.usedByCustomers,
-      newCount: promoCode.usedByCustomers.length,
-    });
-
-    const savedPromoCode = await promoCode.save();
-
-    console.log(`✅ Saved promo code to database:`, {
-      promoCodeId: savedPromoCode._id,
-      usedByCustomers: savedPromoCode.usedByCustomers,
-      finalCount: savedPromoCode.usedByCustomers.length,
-    });
+    await promoCode.save();
   }
 
   /**

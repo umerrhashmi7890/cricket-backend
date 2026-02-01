@@ -3,13 +3,6 @@ import axios from "axios";
 const MOYASAR_API_URL = "https://api.moyasar.com/v1";
 const MOYASAR_SECRET_KEY = process.env.MOYASAR_SECRET_KEY || "";
 
-// Debug: Check if key is loaded (remove after testing)
-console.log("Moyasar Key Status:", {
-  isSet: !!MOYASAR_SECRET_KEY,
-  prefix: MOYASAR_SECRET_KEY.substring(0, 7),
-  length: MOYASAR_SECRET_KEY.length,
-});
-
 export interface CreatePaymentDTO {
   amount: number; // in halalas (SAR * 100)
   currency: string;

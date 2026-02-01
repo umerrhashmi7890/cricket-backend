@@ -53,7 +53,7 @@ const adminSchema = new Schema<IAdminDocument>(
         return ret;
       },
     },
-  }
+  },
 );
 
 // Hash password before saving
@@ -67,14 +67,10 @@ adminSchema.pre("save", async function (next) {
 
 // Method to compare passwords
 adminSchema.methods.comparePassword = async function (
-  candidatePassword: string
+  candidatePassword: string,
 ): Promise<boolean> {
   return await bcrypt.compare(candidatePassword, this.password);
 };
-
-// Indexes
-adminSchema.index({ username: 1 });
-adminSchema.index({ email: 1 });
 
 const Admin = mongoose.model<IAdminDocument>("Admin", adminSchema);
 

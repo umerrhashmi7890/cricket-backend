@@ -100,9 +100,16 @@ export class BookingService {
     const dateObj = new Date(bookingDate);
     dateObj.setHours(0, 0, 0, 0);
 
+    // Also create end of day for range query
+    const endOfDay = new Date(dateObj);
+    endOfDay.setHours(23, 59, 59, 999);
+
     // Build query for all bookings on this date
     const query: any = {
-      bookingDate: dateObj,
+      bookingDate: {
+        $gte: dateObj,
+        $lte: endOfDay,
+      },
       status: { $nin: ["cancelled"] }, // Exclude cancelled bookings
     };
 
@@ -377,4 +384,5 @@ export class BookingService {
     }
 
     return booking;
-  }}
+  }
+}
