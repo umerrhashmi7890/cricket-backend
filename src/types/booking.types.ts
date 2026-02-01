@@ -37,6 +37,7 @@ export interface IBooking {
   amountPaid: number;
   paymentMethod?: string;
   paymentReference?: string;
+  paymentId?: string; // Moyasar payment ID for duplicate prevention
 
   // Status
   status: BookingStatus;
@@ -59,6 +60,9 @@ export interface CreateBookingDTO {
   customerEmail?: string;
   notes?: string;
   promoCode?: string; // Promo code string (e.g., "WELCOME20")
+  paymentId?: string; // Moyasar payment ID
+  paymentStatus?: string; // Payment status (paid, pending, etc.)
+  amountPaid?: number; // Amount paid in SAR
 }
 
 export interface CreateManualBookingDTO {

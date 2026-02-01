@@ -342,4 +342,39 @@ export class BookingService {
 
     return durationMinutes / 60; // Convert to hours
   }
-}
+  /**
+   * Update booking status and payment information
+   */
+  static async updateBookingStatus(
+    bookingId: string,
+    status: string,
+    paymentInfo?: {
+      paymentId?: string;
+      paymentStatus?: string;
+      paidAmount?: number;
+    },
+  ): Promise<any> {
+    const updateData: any = { status };
+
+    if (paymentInfo) {
+      if (paymentInfo.paymentId) {
+        updateData.paymentId = paymentInfo.paymentId;
+      }
+      if (paymentInfo.paymentStatus) {
+        updateData.paymentStatus = paymentInfo.paymentStatus;
+      }
+      if (paymentInfo.paidAmount !== undefined) {
+        updateData.paidAmount = paymentInfo.paidAmount;
+      }
+    }
+
+    const booking = await Booking.findByIdAndUpdate(bookingId, updateData, {
+      new: true,
+    });
+
+    if (!booking) {
+      throw new ApiError(404, "Booking not found");
+    }
+
+    return booking;
+  }}

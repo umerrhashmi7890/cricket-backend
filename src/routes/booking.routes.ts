@@ -6,6 +6,7 @@ import {
   createManualBooking,
   getAllBookings,
   getBookingById,
+  getBookingByPaymentId,
   updateBookingStatus,
   updatePayment,
   updateBooking,
@@ -20,6 +21,7 @@ const router = express.Router();
 router.post("/check-availability", checkAvailability);
 router.post("/check-batch-availability", checkBatchAvailability);
 router.post("/", createBooking);
+router.get("/by-payment/:paymentId", getBookingByPaymentId); // Get booking by payment ID
 router.patch("/:id/cancel", cancelBooking); // Public - customer can cancel
 
 // Protected routes (Admin only - before :id to prevent conflicts)

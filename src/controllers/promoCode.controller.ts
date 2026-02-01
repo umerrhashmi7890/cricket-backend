@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import PromoCode from "../models/PromoCode";
-import { IPromoCodeCreate, IPromoCodeUpdate, ValidatePromoCodeDTO } from "../types/promoCode.types";
+import {
+  IPromoCodeCreate,
+  IPromoCodeUpdate,
+  ValidatePromoCodeDTO,
+} from "../types/promoCode.types";
 import { asyncHandler } from "../middleware/asyncHandler";
 import {
   NotFoundError,
@@ -16,16 +20,19 @@ import { PromoCodeService } from "../services/promoCode.service";
  */
 export const validatePromoCode = asyncHandler(
   async (req: Request, res: Response) => {
-    const { code, customerPhone, bookingAmount } = req.body as ValidatePromoCodeDTO;
+    const { code, customerPhone, bookingAmount } =
+      req.body as ValidatePromoCodeDTO;
 
     if (!code || !customerPhone || !bookingAmount) {
-      throw new BadRequestError("Code, customer phone, and booking amount are required");
+      throw new BadRequestError(
+        "Code, customer phone, and booking amount are required",
+      );
     }
 
     const result = await PromoCodeService.validatePromoCode(
       code,
       customerPhone,
-      bookingAmount
+      bookingAmount,
     );
 
     res.json({
@@ -33,7 +40,7 @@ export const validatePromoCode = asyncHandler(
       data: result,
       message: result.message,
     });
-  }
+  },
 );
 
 /**
@@ -56,6 +63,14 @@ export const getAllPromoCodes = asyncHandler(
     }
 
     const promoCodes = await PromoCode.find(filter).sort({ createdAt: -1 });
+
+    console.log(`📊 Fetched ${promoCodes.length} promo codes for admin panel`);
+    promoCodes.forEach((code) => {
+      console.log(
+        `  - ${code.code}: ${code.usedByCustomers.length} uses`,
+        code.usedByCustomers,
+      );
+    });
 
     // Add computed fields
     const promoCodesWithStats = promoCodes.map((code) => ({
@@ -81,7 +96,7 @@ export const getAllPromoCodes = asyncHandler(
       count: promoCodesWithStats.length,
       data: promoCodesWithStats,
     });
-  }
+  },
 );
 
 /**
@@ -118,7 +133,7 @@ export const getPromoCodeById = asyncHandler(
         updatedAt: promoCode.updatedAt,
       },
     });
-  }
+  },
 );
 
 /**
@@ -131,7 +146,9 @@ export const createPromoCode = asyncHandler(
 
     // Validate required fields
     if (!code || !discountType || discountValue === undefined) {
-      throw new BadRequestError("Code, discount type, and discount value are required");
+      throw new BadRequestError(
+        "Code, discount type, and discount value are required",
+      );
     }
 
     // Validate discount value
@@ -171,7 +188,7 @@ export const createPromoCode = asyncHandler(
       data: promoCode,
       message: "Promo code created successfully",
     });
-  }
+  },
 );
 
 /**
@@ -222,7 +239,7 @@ export const updatePromoCode = asyncHandler(
       data: promoCode,
       message: "Promo code updated successfully",
     });
-  }
+  },
 );
 
 /**
@@ -246,7 +263,7 @@ export const togglePromoCodeStatus = asyncHandler(
       data: promoCode,
       message: `Promo code ${promoCode.isActive ? "activated" : "deactivated"} successfully`,
     });
-  }
+  },
 );
 
 /**
@@ -265,7 +282,7 @@ export const deletePromoCode = asyncHandler(
     // Check if promo code has been used
     if (promoCode.usedByCustomers.length > 0) {
       throw new BadRequestError(
-        "Cannot delete promo code that has been used. Deactivate it instead."
+        "Cannot delete promo code that has been used. Deactivate it instead.",
       );
     }
 
@@ -275,5 +292,5 @@ export const deletePromoCode = asyncHandler(
       success: true,
       message: "Promo code deleted successfully",
     });
-  }
+  },
 );

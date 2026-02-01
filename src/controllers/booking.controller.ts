@@ -11,6 +11,7 @@ import {
 import { BookingService } from "../services/booking.service";
 import { PricingService } from "../services/pricing.service";
 import { PromoCodeService } from "../services/promoCode.service";
+import { EmailService } from "../services/email.service";
 import {
   CreateBookingDTO,
   CreateManualBookingDTO,
@@ -206,6 +207,9 @@ export const createBooking = asyncHandler(
       customerEmail,
       notes,
       promoCode,
+      paymentId,
+      paymentStatus,
+      amountPaid,
     } = req.body as CreateBookingDTO;
 
     // Validate required fields
@@ -276,16 +280,33 @@ export const createBooking = asyncHandler(
     let finalPrice = pricingResult.finalPrice;
 
     if (promoCode) {
+      console.log(
+        `🎟️ Validating promo code "${promoCode}" for customer phone: ${customerPhone}`,
+      );
       const promoValidation = await PromoCodeService.validatePromoCode(
         promoCode,
-        customer._id.toString(),
+        customerPhone, // Use phone number, not customer ID
         pricingResult.finalPrice,
       );
+
+      console.log(`🎟️ Promo validation result:`, {
+        valid: promoValidation.valid,
+        message: promoValidation.message,
+        discount: promoValidation.discount,
+        promoCodeId: promoValidation.promoCodeId,
+      });
 
       if (promoValidation.valid && promoValidation.promoCodeId) {
         promoCodeId = promoValidation.promoCodeId;
         discountAmount = promoValidation.discount || 0;
         finalPrice = promoValidation.finalAmount || pricingResult.finalPrice;
+        console.log(
+          `✅ Promo code applied: ${promoCode} (Discount: ${discountAmount} SAR)`,
+        );
+      } else {
+        console.warn(
+          `⚠️ Promo code validation failed: ${promoValidation.message}`,
+        );
       }
       // If promo code is invalid, we just ignore it (no error thrown)
       // Booking proceeds without discount
@@ -304,16 +325,37 @@ export const createBooking = asyncHandler(
       promoCode: promoCodeId,
       discountAmount,
       finalPrice,
-      paymentStatus: "pending",
-      amountPaid: 0,
-      status: "pending",
+      paymentStatus: paymentStatus || "pending",
+      paymentId: paymentId || undefined,
+      amountPaid: amountPaid || 0,
+      status: paymentStatus === "paid" ? "confirmed" : "pending",
       notes,
       createdBy: "customer",
     });
 
     // Mark promo code as used if applied
-    if (promoCodeId) {
-      await PromoCodeService.markAsUsed(promoCodeId, customer._id.toString());
+    if (promoCodeId && customer?._id) {
+      console.log(
+        `🎟️ Attempting to mark promo code ${promoCodeId} as used by customer ${customer._id}`,
+      );
+      try {
+        await PromoCodeService.markAsUsed(promoCodeId, customer._id.toString());
+        console.log(
+          `✅ Successfully marked promo code as used by customer ${customer._id}`,
+        );
+      } catch (error) {
+        // If promo was already marked as used, log but don't fail the booking
+        console.error(
+          `❌ Failed to mark promo as used:`,
+          error instanceof Error ? error.message : error,
+        );
+      }
+    } else {
+      if (promoCodeId) {
+        console.warn(
+          `⚠️ Promo code ${promoCodeId} provided but customer ID is missing`,
+        );
+      }
     }
 
     // Increment customer's total bookings
@@ -326,6 +368,30 @@ export const createBooking = asyncHandler(
       .populate("customer", "name phone email")
       .populate("court", "name description")
       .populate("promoCode", "code discountType discountValue");
+
+    // Send confirmation email if payment is completed
+    if (paymentStatus === "paid" && customerEmail) {
+      await EmailService.sendBookingConfirmation({
+        customerName: customerName,
+        customerEmail: customerEmail,
+        customerPhone: customerPhone,
+        bookingId: booking._id.toString(),
+        courtName: court.name,
+        bookingDate: dateObj.toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+        startTime,
+        endTime,
+        durationHours,
+        totalPrice: finalPrice,
+        amountPaid: amountPaid || 0,
+        paymentStatus: paymentStatus as "pending" | "partial" | "paid",
+        paymentMethod: "Card",
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -542,6 +608,32 @@ export const getBookingById = asyncHandler(
 
     if (!booking) {
       throw new NotFoundError("Booking");
+    }
+
+    res.json({
+      success: true,
+      data: booking,
+    });
+  },
+);
+
+/**
+ * Get booking by payment ID (public endpoint for confirmation page)
+ * Used to check if booking already exists to prevent duplicates
+ */
+export const getBookingByPaymentId = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { paymentId } = req.params;
+
+    const booking = await Booking.findOne({ paymentId })
+      .populate("court", "name description")
+      .populate("customer", "name phone email");
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: "No booking found with this payment ID",
+      });
     }
 
     res.json({

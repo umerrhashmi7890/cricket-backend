@@ -11,7 +11,7 @@ export class PromoCodeService {
   static async validatePromoCode(
     code: string,
     customerPhone: string,
-    bookingAmount: number
+    bookingAmount: number,
   ): Promise<PromoCodeValidationResult> {
     // Find promo code (case-insensitive)
     const promoCode = await PromoCode.findOne({
@@ -44,8 +44,11 @@ export class PromoCodeService {
     // Check 3: Has customer already used it?
     // Find customer by phone to check if they've used this promo before
     const existingCustomer = await Customer.findOne({ phone: customerPhone });
-    
-    if (existingCustomer && promoCode.usedByCustomers.includes(existingCustomer._id.toString())) {
+
+    if (
+      existingCustomer &&
+      promoCode.usedByCustomers.includes(existingCustomer._id.toString())
+    ) {
       return {
         valid: false,
         message: "You have already used this promo code",
@@ -67,7 +70,7 @@ export class PromoCodeService {
     const { discount, finalAmount } = this.calculateDiscount(
       bookingAmount,
       promoCode.discountType,
-      promoCode.discountValue
+      promoCode.discountValue,
     );
 
     return {
@@ -85,7 +88,7 @@ export class PromoCodeService {
   static calculateDiscount(
     amount: number,
     discountType: "percentage" | "fixed",
-    discountValue: number
+    discountValue: number,
   ): { discount: number; finalAmount: number } {
     let discount = 0;
 
@@ -111,7 +114,7 @@ export class PromoCodeService {
    */
   static async markAsUsed(
     promoCodeId: string,
-    customerId: string
+    customerId: string,
   ): Promise<void> {
     const promoCode = await PromoCode.findById(promoCodeId);
 
@@ -119,14 +122,36 @@ export class PromoCodeService {
       throw new NotFoundError("Promo code");
     }
 
+    console.log(`🔍 Before marking as used:`, {
+      promoCodeId,
+      customerId,
+      currentUsedBy: promoCode.usedByCustomers,
+      currentCount: promoCode.usedByCustomers.length,
+    });
+
     // Check if already used (double-check)
     if (promoCode.usedByCustomers.includes(customerId)) {
+      console.warn(
+        `⚠️ Customer ${customerId} already used promo code ${promoCodeId}`,
+      );
       throw new BadRequestError("Promo code already used by this customer");
     }
 
     // Add customer to used list
     promoCode.usedByCustomers.push(customerId);
-    await promoCode.save();
+
+    console.log(`🔍 After adding customer:`, {
+      usedByCustomers: promoCode.usedByCustomers,
+      newCount: promoCode.usedByCustomers.length,
+    });
+
+    const savedPromoCode = await promoCode.save();
+
+    console.log(`✅ Saved promo code to database:`, {
+      promoCodeId: savedPromoCode._id,
+      usedByCustomers: savedPromoCode.usedByCustomers,
+      finalCount: savedPromoCode.usedByCustomers.length,
+    });
   }
 
   /**
@@ -134,7 +159,7 @@ export class PromoCodeService {
    */
   static async removeUsage(
     promoCodeId: string,
-    customerId: string
+    customerId: string,
   ): Promise<void> {
     const promoCode = await PromoCode.findById(promoCodeId);
 
@@ -144,7 +169,7 @@ export class PromoCodeService {
 
     // Remove customer from used list
     promoCode.usedByCustomers = promoCode.usedByCustomers.filter(
-      (id) => id !== customerId
+      (id) => id !== customerId,
     );
     await promoCode.save();
   }

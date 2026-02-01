@@ -117,6 +117,11 @@ const BookingSchema = new Schema<IBookingDocument>(
       type: String,
       required: false,
     },
+    paymentId: {
+      type: String,
+      required: false,
+      index: true, // Index for quick lookups by payment ID
+    },
     status: {
       type: String,
       enum: [

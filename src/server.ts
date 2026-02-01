@@ -11,6 +11,7 @@ import bookingRoutes from "./routes/booking.routes";
 import promoCodeRoutes from "./routes/promoCode.routes";
 import contactRoutes from "./routes/contact.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
+import paymentRoutes from "./routes/payment.routes";
 import { errorHandler, notFound } from "./middleware/errorHandler";
 // Load environment variables
 dotenv.config();
@@ -79,6 +80,7 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/promo-codes", promoCodeRoutes);
 app.use("/api/contact", contactRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/payments", paymentRoutes);
 
 // 404 handler (must be after all routes)
 app.use(notFound);
