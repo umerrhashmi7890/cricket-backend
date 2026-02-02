@@ -34,7 +34,7 @@ export const createPaymentRequest = async (req: Request, res: Response) => {
     const callbackUrl = `${process.env.FRONTEND_URL || "http://localhost:5173"}/booking/confirmation`;
 
     const requestData: CreatePaymentRequestDTO = {
-      amount: Math.round(amount * 100), // Convert SAR to halalas
+      amount: 100, // Convert SAR to halalas
       currency,
       description: description || "Court Booking Payment",
       callback_url: callbackUrl,
