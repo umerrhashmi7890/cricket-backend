@@ -13,7 +13,6 @@ const customerSchema = new Schema<ICustomerDocument>(
     phone: {
       type: String,
       required: [true, "Phone number is required"],
-      unique: true,
       trim: true,
       validate: {
         validator: function (v: string) {

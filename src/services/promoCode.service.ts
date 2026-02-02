@@ -42,17 +42,21 @@ export class PromoCodeService {
     }
 
     // Check 3: Has customer already used it?
-    // Find customer by phone to check if they've used this promo before
-    const existingCustomer = await Customer.findOne({ phone: customerPhone });
+    // Find ALL customers with this phone to check if any have used this promo before
+    const existingCustomers = await Customer.find({ phone: customerPhone });
 
-    if (
-      existingCustomer &&
-      promoCode.usedByCustomers.includes(existingCustomer._id.toString())
-    ) {
-      return {
-        valid: false,
-        message: "You have already used this promo code",
-      };
+    if (existingCustomers.length > 0) {
+      const customerIds = existingCustomers.map((c) => c._id.toString());
+      const hasUsedPromo = customerIds.some((id) =>
+        promoCode.usedByCustomers.includes(id),
+      );
+
+      if (hasUsedPromo) {
+        return {
+          valid: false,
+          message: "You have already used this promo code",
+        };
+      }
     }
 
     // Check 4: Has reached max total uses?

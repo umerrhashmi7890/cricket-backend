@@ -34,7 +34,7 @@ export const createPaymentRequest = async (req: Request, res: Response) => {
     const callbackUrl = `${process.env.FRONTEND_URL || "http://localhost:5173"}/booking/confirmation`;
 
     const requestData: CreatePaymentRequestDTO = {
-      amount: 100, // Convert SAR to halalas
+      amount: 100,
       currency,
       description: description || "Court Booking Payment",
       callback_url: callbackUrl,
@@ -55,17 +55,12 @@ export const createPaymentRequest = async (req: Request, res: Response) => {
             ? JSON.parse(metadata.slots)
             : metadata.slots;
 
-        // Find or create customer
-        let customer = await Customer.findOne({
+        // Create new customer for each booking (allows same phone for different people)
+        const customer = await Customer.create({
+          name: metadata.customerName,
           phone: metadata.customerPhone,
+          email: metadata.customerEmail || undefined,
         });
-        if (!customer) {
-          customer = await Customer.create({
-            name: metadata.customerName,
-            phone: metadata.customerPhone,
-            email: metadata.customerEmail || undefined,
-          });
-        }
 
         // Look up promo code ID if promo code is provided
         let promoCodeId: mongoose.Types.ObjectId | undefined;

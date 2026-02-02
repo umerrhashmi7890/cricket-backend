@@ -254,15 +254,12 @@ export const createBooking = asyncHandler(
       throw new ConflictError("Time slot is not available");
     }
 
-    // Find or create customer
-    let customer = await Customer.findOne({ phone: customerPhone });
-    if (!customer) {
-      customer = await Customer.create({
-        name: customerName,
-        phone: customerPhone,
-        email: customerEmail,
-      });
-    }
+    // Create new customer for each booking (allows same phone for different people)
+    const customer = await Customer.create({
+      name: customerName,
+      phone: customerPhone,
+      email: customerEmail,
+    });
 
     // Calculate duration
     const durationHours = BookingService.calculateDuration(startTime, endTime);
@@ -446,15 +443,12 @@ export const createManualBooking = asyncHandler(
 
     // If not a blocked booking, handle customer and pricing
     if (!isBlocked) {
-      // Find or create customer
-      let customer = await Customer.findOne({ phone: customerPhone });
-      if (!customer) {
-        customer = await Customer.create({
-          name: customerName!,
-          phone: customerPhone!,
-          email: customerEmail,
-        });
-      }
+      // Create new customer for each booking (allows same phone for different people)
+      const customer = await Customer.create({
+        name: customerName!,
+        phone: customerPhone!,
+        email: customerEmail,
+      });
       customerId = customer._id;
 
       // Calculate pricing
@@ -581,7 +575,7 @@ export const getAllBookings = asyncHandler(
       Booking.find(query)
         .populate("customer", "name phone email")
         .populate("court", "name description")
-        .sort({ bookingDate: -1, startTime: -1 })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit)),
       Booking.countDocuments(query),
