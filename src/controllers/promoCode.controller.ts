@@ -64,14 +64,6 @@ export const getAllPromoCodes = asyncHandler(
 
     const promoCodes = await PromoCode.find(filter).sort({ createdAt: -1 });
 
-    console.log(`📊 Fetched ${promoCodes.length} promo codes for admin panel`);
-    promoCodes.forEach((code) => {
-      console.log(
-        `  - ${code.code}: ${code.usedByCustomers.length} uses`,
-        code.usedByCustomers,
-      );
-    });
-
     // Add computed fields
     const promoCodesWithStats = promoCodes.map((code) => ({
       _id: code._id,

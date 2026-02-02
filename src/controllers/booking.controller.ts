@@ -280,29 +280,16 @@ export const createBooking = asyncHandler(
     let finalPrice = pricingResult.finalPrice;
 
     if (promoCode) {
-      console.log(
-        `🎟️ Validating promo code "${promoCode}" for customer phone: ${customerPhone}`,
-      );
       const promoValidation = await PromoCodeService.validatePromoCode(
         promoCode,
         customerPhone, // Use phone number, not customer ID
         pricingResult.finalPrice,
       );
 
-      console.log(`🎟️ Promo validation result:`, {
-        valid: promoValidation.valid,
-        message: promoValidation.message,
-        discount: promoValidation.discount,
-        promoCodeId: promoValidation.promoCodeId,
-      });
-
       if (promoValidation.valid && promoValidation.promoCodeId) {
         promoCodeId = promoValidation.promoCodeId;
         discountAmount = promoValidation.discount || 0;
         finalPrice = promoValidation.finalAmount || pricingResult.finalPrice;
-        console.log(
-          `✅ Promo code applied: ${promoCode} (Discount: ${discountAmount} SAR)`,
-        );
       } else {
         console.warn(
           `⚠️ Promo code validation failed: ${promoValidation.message}`,
@@ -335,14 +322,8 @@ export const createBooking = asyncHandler(
 
     // Mark promo code as used if applied
     if (promoCodeId && customer?._id) {
-      console.log(
-        `🎟️ Attempting to mark promo code ${promoCodeId} as used by customer ${customer._id}`,
-      );
       try {
         await PromoCodeService.markAsUsed(promoCodeId, customer._id.toString());
-        console.log(
-          `✅ Successfully marked promo code as used by customer ${customer._id}`,
-        );
       } catch (error) {
         // If promo was already marked as used, log but don't fail the booking
         console.error(
@@ -514,6 +495,34 @@ export const createManualBooking = asyncHandler(
     const populatedBooking = await Booking.findById(booking._id)
       .populate("customer", "name phone email")
       .populate("court", "name description");
+
+    // Send confirmation email for non-blocked bookings
+    if (!isBlocked && customerEmail) {
+      try {
+        await EmailService.sendBookingConfirmation({
+          customerName: customerName!,
+          customerEmail: customerEmail,
+          customerPhone: customerPhone!,
+          bookingId: booking._id.toString(),
+          courtName: court.name,
+          bookingDate: dateObj.toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }),
+          startTime,
+          endTime,
+          durationHours,
+          totalPrice,
+          amountPaid: 0,
+          paymentStatus: "pending",
+        });
+      } catch (emailError) {
+        console.error("Failed to send booking confirmation email:", emailError);
+        // Don't fail the booking creation if email fails
+      }
+    }
 
     res.status(201).json({
       success: true,
