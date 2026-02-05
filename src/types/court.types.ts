@@ -1,7 +1,7 @@
 export interface ICourt {
   name: string;
   description?: string;
-  status: "active" | "inactive" | "maintenance";
+  status: "active" | "inactive" | "maintenance" | "archived";
   features: string[];
   imageUrl?: string;
   createdAt?: Date;
@@ -18,7 +18,7 @@ export interface ICourtCreate {
 export interface ICourtUpdate {
   name?: string;
   description?: string;
-  status?: "active" | "inactive" | "maintenance";
+  status?: "active" | "inactive" | "maintenance" | "archived";
   features?: string[];
   imageUrl?: string;
 }

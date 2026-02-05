@@ -176,11 +176,15 @@ export const updateCourt = asyncHandler(async (req: Request, res: Response) => {
   });
 });
 
-// Delete court
+// Archive court (soft delete)
 export const deleteCourt = asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
-  const court = await Court.findByIdAndDelete(id);
+  const court = await Court.findByIdAndUpdate(
+    id,
+    { status: "archived" },
+    { new: true },
+  );
 
   if (!court) {
     throw new NotFoundError("Court");
@@ -188,7 +192,7 @@ export const deleteCourt = asyncHandler(async (req: Request, res: Response) => {
 
   res.json({
     success: true,
-    message: "Court deleted successfully",
+    message: "Court archived successfully",
     data: court,
   });
 });
@@ -199,9 +203,9 @@ export const toggleCourtStatus = asyncHandler(
     const { id } = req.params;
     const { status } = req.body;
 
-    if (!["active", "inactive", "maintenance"].includes(status)) {
+    if (!["active", "inactive", "maintenance", "archived"].includes(status)) {
       throw new BadRequestError(
-        "Invalid status. Must be: active, inactive, or maintenance",
+        "Invalid status. Must be: active, inactive, maintenance, or archived",
       );
     }
 

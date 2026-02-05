@@ -18,7 +18,7 @@ const courtSchema = new Schema<ICourtDocument>(
     },
     status: {
       type: String,
-      enum: ["active", "inactive", "maintenance"],
+      enum: ["active", "inactive", "maintenance", "archived"],
       default: "active",
     },
     features: {
