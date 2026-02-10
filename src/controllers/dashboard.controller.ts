@@ -10,8 +10,12 @@ export const getDashboardStats = asyncHandler(
     const { date } = req.query;
     const targetDate = date ? new Date(date as string) : new Date();
 
-    const dayStart = startOfDay(targetDate);
-    const dayEnd = endOfDay(targetDate);
+    // Use UTC dates to avoid timezone issues
+    const dayStart = new Date(targetDate);
+    dayStart.setUTCHours(0, 0, 0, 0);
+
+    const dayEnd = new Date(targetDate);
+    dayEnd.setUTCHours(23, 59, 59, 999);
 
     // Get today's bookings count
     const todaysBookingsCount = await Booking.countDocuments({
@@ -31,12 +35,12 @@ export const getDashboardStats = asyncHandler(
       status: { $ne: "cancelled" },
     });
 
-    const todaysRevenue = todaysBookings.reduce(
-      (total: number, booking: any) => {
-        return total + (booking.finalPrice || 0);
-      },
-      0,
-    );
+    const todaysRevenue =
+      Math.round(
+        todaysBookings.reduce((total: number, booking: any) => {
+          return total + (booking.finalPrice || 0);
+        }, 0) * 100,
+      ) / 100;
 
     // Get court utilization percentage
     const allCourts = await Court.find({ status: "active" });
@@ -75,12 +79,11 @@ export const getDashboardStats = asyncHandler(
     });
 
     // Calculate percentage changes (mock for now, can be enhanced)
-    const lastDayStart = startOfDay(
-      new Date(targetDate.getTime() - 24 * 60 * 60 * 1000),
-    );
-    const lastDayEnd = endOfDay(
-      new Date(targetDate.getTime() - 24 * 60 * 60 * 1000),
-    );
+    const yesterday = new Date(targetDate.getTime() - 24 * 60 * 60 * 1000);
+    const lastDayStart = new Date(yesterday);
+    lastDayStart.setUTCHours(0, 0, 0, 0);
+    const lastDayEnd = new Date(yesterday);
+    lastDayEnd.setUTCHours(23, 59, 59, 999);
 
     const lastDayBookingsCount = await Booking.countDocuments({
       bookingDate: {
@@ -134,8 +137,10 @@ export const getDashboardBookings = asyncHandler(
     const { date } = req.query;
     const targetDate = date ? new Date(date as string) : new Date();
 
-    const dayStart = startOfDay(targetDate);
-    const dayEnd = endOfDay(targetDate);
+    const dayStart = new Date(targetDate);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(targetDate);
+    dayEnd.setUTCHours(23, 59, 59, 999);
 
     const bookings = await Booking.find({
       bookingDate: {
@@ -173,8 +178,10 @@ export const getDashboardCourtUtilization = asyncHandler(
     const { date } = req.query;
     const targetDate = date ? new Date(date as string) : new Date();
 
-    const dayStart = startOfDay(targetDate);
-    const dayEnd = endOfDay(targetDate);
+    const dayStart = new Date(targetDate);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(targetDate);
+    dayEnd.setUTCHours(23, 59, 59, 999);
 
     const courts = await Court.find({ status: "active" });
 
@@ -217,12 +224,38 @@ export const getRevenueSummary = asyncHandler(
   async (req: Request, res: Response, next: NextFunction) => {
     const { startDate, endDate } = req.query;
 
-    const start = startDate
-      ? startOfDay(new Date(startDate as string))
-      : startOfMonth(new Date());
-    const end = endDate
-      ? endOfDay(new Date(endDate as string))
-      : endOfMonth(new Date());
+    let start: Date;
+    let end: Date;
+
+    if (startDate) {
+      start = new Date(startDate as string);
+      start.setUTCHours(0, 0, 0, 0);
+    } else {
+      // Start of current month in UTC
+      const now = new Date();
+      start = new Date(
+        Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0),
+      );
+    }
+
+    if (endDate) {
+      end = new Date(endDate as string);
+      end.setUTCHours(23, 59, 59, 999);
+    } else {
+      // End of current month in UTC
+      const now = new Date();
+      end = new Date(
+        Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth() + 1,
+          0,
+          23,
+          59,
+          59,
+          999,
+        ),
+      );
+    }
 
     const revenueData = await Booking.aggregate([
       {
