@@ -150,13 +150,6 @@ export const getCalendarBookings = asyncHandler(
       end.setHours(23, 59, 59, 999);
     }
 
-    // Fetch courts to create index mapping
-    const courts = await Court.find({}).sort({ name: 1 });
-    const courtIndexMap: Record<string, number> = {};
-    courts.forEach((c, idx) => {
-      courtIndexMap[c._id.toString()] = idx; // zero-based index
-    });
-
     // Query bookings in range (exclude cancelled)
     const bookings = await Booking.find({
       bookingDate: { $gte: start, $lte: end },
@@ -176,7 +169,7 @@ export const getCalendarBookings = asyncHandler(
       return {
         id: b._id,
         bookingId: b._id,
-        court: courtIndexMap[courtId] ?? null,
+        courtId,
         courtName,
         bookingDate: b.bookingDate,
         startHour,
@@ -222,6 +215,24 @@ export const createBooking = asyncHandler(
       !customerName
     ) {
       throw new BadRequestError("All required fields must be provided");
+    }
+
+    // Prevent duplicate bookings with same payment ID
+    if (paymentId) {
+      const existingBooking = await Booking.findOne({ paymentId });
+      if (existingBooking) {
+        // Return the existing booking instead of creating a duplicate
+        const populatedExisting = await Booking.findById(existingBooking._id)
+          .populate("customer", "name phone email")
+          .populate("court", "name description")
+          .populate("promoCode", "code discountType discountValue");
+
+        return res.status(200).json({
+          success: true,
+          data: populatedExisting,
+          message: "Booking already exists for this payment",
+        });
+      }
     }
 
     // Verify court exists
@@ -537,13 +548,14 @@ export const getAllBookings = asyncHandler(
     const {
       courtId,
       customerId,
+      customerName,
       status,
       paymentStatus,
       startDate,
       endDate,
       createdBy,
       page = 1,
-      limit = 20,
+      limit = 1000,
     } = req.query as any;
 
     const query: any = {};
@@ -553,6 +565,33 @@ export const getAllBookings = asyncHandler(
     if (status) query.status = status;
     if (paymentStatus) query.paymentStatus = paymentStatus;
     if (createdBy) query.createdBy = createdBy;
+
+    // Customer name search (case-insensitive partial match)
+    let customerFilter: any = null;
+    if (customerName) {
+      const customers = await Customer.find({
+        name: { $regex: customerName, $options: "i" },
+      }).select("_id");
+      customerFilter = customers.map((c) => c._id);
+      if (customerFilter.length > 0) {
+        query.customer = { $in: customerFilter };
+      } else {
+        // No customers match, return empty result
+        return res.json({
+          success: true,
+          count: 0,
+          data: {
+            bookings: [],
+            pagination: {
+              page: Number(page),
+              limit: Number(limit),
+              total: 0,
+              pages: 0,
+            },
+          },
+        });
+      }
+    }
 
     // Date range filter
     if (startDate || endDate) {
