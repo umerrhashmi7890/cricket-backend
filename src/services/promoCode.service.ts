@@ -87,6 +87,64 @@ export class PromoCodeService {
   }
 
   /**
+   * Validate promo code for admin (skips phone number check)
+   * Admin can use promo codes multiple times
+   */
+  static async validatePromoCodeAdmin(
+    code: string,
+    bookingAmount: number,
+  ): Promise<PromoCodeValidationResult> {
+    const promoCode = await PromoCode.findOne({
+      code: code.toUpperCase(),
+    });
+
+    if (!promoCode) {
+      return {
+        valid: false,
+        message: "Invalid promo code",
+      };
+    }
+
+    if (!promoCode.isActive) {
+      return {
+        valid: false,
+        message: "This promo code is no longer active",
+      };
+    }
+
+    if (new Date() > promoCode.expiresAt) {
+      return {
+        valid: false,
+        message: "This promo code has expired",
+      };
+    }
+
+    if (
+      promoCode.maxTotalUses !== null &&
+      promoCode.usedByCustomers.length >= promoCode.maxTotalUses
+    ) {
+      return {
+        valid: false,
+        message: "This promo code usage limit has been reached",
+      };
+    }
+
+    const { discount, finalAmount } = this.calculateDiscount(
+      bookingAmount,
+      promoCode.discountType,
+      promoCode.discountValue,
+    );
+
+    return {
+      valid: true,
+      discount,
+      finalAmount,
+      promoCodeId: promoCode._id.toString(),
+      message: "Promo code is valid",
+    };
+  }
+
+  /**
    * Calculate discount amount
    */
   static calculateDiscount(

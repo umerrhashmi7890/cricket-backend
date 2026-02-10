@@ -1,6 +1,7 @@
 import express from "express";
 import {
   validatePromoCode,
+  validatePromoCodeAdmin,
   getAllPromoCodes,
   getPromoCodeById,
   createPromoCode,
@@ -16,6 +17,12 @@ const router = express.Router();
 router.post("/validate", validatePromoCode);
 
 // Protected routes (Admin only)
+router.post(
+  "/validate-admin",
+  authenticate,
+  requireAdmin,
+  validatePromoCodeAdmin,
+);
 router.get("/", authenticate, requireAdmin, getAllPromoCodes);
 router.get("/:id", authenticate, requireAdmin, getPromoCodeById);
 router.post("/", authenticate, requireAdmin, createPromoCode);

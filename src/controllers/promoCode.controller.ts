@@ -44,6 +44,92 @@ export const validatePromoCode = asyncHandler(
 );
 
 /**
+ * Validate promo code for admin (admin only)
+ * Skips phone number validation - only checks if code is valid and not expired
+ */
+export const validatePromoCodeAdmin = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { code, bookingAmount } = req.body;
+
+    if (!code || !bookingAmount) {
+      throw new BadRequestError("Code and booking amount are required");
+    }
+
+    // Find promo code
+    const promoCode = await PromoCode.findOne({
+      code: code.toUpperCase(),
+    });
+
+    if (!promoCode) {
+      return res.json({
+        success: true,
+        data: {
+          valid: false,
+          message: "Invalid promo code",
+        },
+      });
+    }
+
+    // Check if active
+    if (!promoCode.isActive) {
+      return res.json({
+        success: true,
+        data: {
+          valid: false,
+          message: "Promo code is inactive",
+        },
+      });
+    }
+
+    // Check if expired
+    if (new Date() > promoCode.expiresAt) {
+      return res.json({
+        success: true,
+        data: {
+          valid: false,
+          message: "Promo code has expired",
+        },
+      });
+    }
+
+    // Check max total uses (if limited)
+    if (
+      promoCode.maxTotalUses !== null &&
+      promoCode.usedByCustomers.length >= promoCode.maxTotalUses
+    ) {
+      return res.json({
+        success: true,
+        data: {
+          valid: false,
+          message: "Promo code usage limit reached",
+        },
+      });
+    }
+
+    // Calculate discount
+    let discount = 0;
+    if (promoCode.discountType === "percentage") {
+      discount = (bookingAmount * promoCode.discountValue) / 100;
+    } else {
+      discount = promoCode.discountValue;
+    }
+
+    const finalAmount = Math.max(0, bookingAmount - discount);
+
+    res.json({
+      success: true,
+      data: {
+        valid: true,
+        promoCodeId: promoCode._id.toString(),
+        discount,
+        finalAmount,
+        message: "Promo code is valid",
+      },
+    });
+  },
+);
+
+/**
  * Get all promo codes (admin only)
  */
 export const getAllPromoCodes = asyncHandler(

@@ -406,6 +406,7 @@ export const createManualBooking = asyncHandler(
       customerEmail,
       notes,
       isBlocked,
+      promoCode,
     } = req.body as CreateManualBookingDTO;
 
     // Validate required fields
@@ -451,6 +452,9 @@ export const createManualBooking = asyncHandler(
     let customerId;
     let totalPrice = 0;
     let pricingBreakdown: any[] = [];
+    let promoCodeId: string | undefined;
+    let discountAmount = 0;
+    let finalPrice = 0;
 
     // If not a blocked booking, handle customer and pricing
     if (!isBlocked) {
@@ -471,6 +475,28 @@ export const createManualBooking = asyncHandler(
       totalPrice = pricingResult.finalPrice;
       pricingBreakdown = pricingResult.breakdown;
 
+      // Apply promo code if provided (admin bookings skip phone validation)
+      if (promoCode) {
+        const promoValidation = await PromoCodeService.validatePromoCodeAdmin(
+          promoCode,
+          totalPrice,
+        );
+
+        if (promoValidation.valid && promoValidation.promoCodeId) {
+          promoCodeId = promoValidation.promoCodeId;
+          discountAmount = promoValidation.discount || 0;
+          finalPrice = promoValidation.finalAmount || totalPrice;
+        } else {
+          console.warn(
+            `⚠️ Promo code validation failed: ${promoValidation.message}`,
+          );
+          // If promo fails, proceed without discount
+          finalPrice = totalPrice;
+        }
+      } else {
+        finalPrice = totalPrice;
+      }
+
       // Increment customer's total bookings
       await Customer.findByIdAndUpdate(customer._id, {
         $inc: { totalBookings: 1 },
@@ -487,14 +513,27 @@ export const createManualBooking = asyncHandler(
       durationHours,
       totalPrice,
       pricingBreakdown,
-      discountAmount: 0,
-      finalPrice: totalPrice,
+      promoCode: promoCodeId,
+      discountAmount,
+      finalPrice,
       paymentStatus: isBlocked ? "paid" : "pending", // Blocked bookings are marked as paid
       amountPaid: 0,
       status: isBlocked ? "blocked" : "pending",
       notes,
       createdBy: "admin",
     });
+
+    // Mark promo code as used if applied
+    if (promoCodeId && customerId) {
+      try {
+        await PromoCodeService.markAsUsed(promoCodeId, customerId.toString());
+      } catch (error) {
+        console.error(
+          `❌ Failed to mark promo as used:`,
+          error instanceof Error ? error.message : error,
+        );
+      }
+    }
 
     // Populate references for response
     const populatedBooking = await Booking.findById(booking._id)

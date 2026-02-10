@@ -75,6 +75,7 @@ export interface CreateManualBookingDTO {
   customerEmail?: string;
   notes?: string;
   isBlocked?: boolean; // If true, creates a blocked booking
+  promoCode?: string; // Admin can apply promo codes
 }
 
 export interface CheckAvailabilityDTO {
