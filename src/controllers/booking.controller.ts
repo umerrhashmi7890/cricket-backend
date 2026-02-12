@@ -130,24 +130,24 @@ export const getCalendarBookings = asyncHandler(
   async (req: Request, res: Response) => {
     const { startDate, endDate } = req.query as any;
 
-    // Determine date range (default: today)
+    // Determine date range (default: today) - Use UTC to ensure consistency across servers
     let start: Date;
     let end: Date;
 
     if (startDate) {
       start = new Date(startDate);
-      start.setHours(0, 0, 0, 0);
+      start.setUTCHours(0, 0, 0, 0);
     } else {
       start = new Date();
-      start.setHours(0, 0, 0, 0);
+      start.setUTCHours(0, 0, 0, 0);
     }
 
     if (endDate) {
       end = new Date(endDate);
-      end.setHours(23, 59, 59, 999);
+      end.setUTCHours(23, 59, 59, 999);
     } else {
       end = new Date(start);
-      end.setHours(23, 59, 59, 999);
+      end.setUTCHours(23, 59, 59, 999);
     }
 
     // Query bookings in range (exclude cancelled)
@@ -246,9 +246,9 @@ export const createBooking = asyncHandler(
       throw new BadRequestError("Court is not available for booking");
     }
 
-    // Normalize booking date
+    // Normalize booking date to midnight UTC
     const dateObj = new Date(bookingDate);
-    dateObj.setHours(0, 0, 0, 0);
+    dateObj.setUTCHours(0, 0, 0, 0);
 
     // Validate booking time
     BookingService.validateBookingTime(startTime, endTime, dateObj);
@@ -427,9 +427,9 @@ export const createManualBooking = asyncHandler(
       throw new NotFoundError("Court");
     }
 
-    // Normalize booking date
+    // Normalize booking date to midnight UTC
     const dateObj = new Date(bookingDate);
-    dateObj.setHours(0, 0, 0, 0);
+    dateObj.setUTCHours(0, 0, 0, 0);
 
     // Validate booking time
     BookingService.validateBookingTime(startTime, endTime, dateObj);
