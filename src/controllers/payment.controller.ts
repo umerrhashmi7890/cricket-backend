@@ -84,6 +84,7 @@ export const createPaymentRequest = async (req: Request, res: Response) => {
           customerPhone: metadata.customerPhone,
           customerEmail: metadata.customerEmail,
           paymentOption: metadata.paymentOption,
+          originalTotal: metadata.originalTotal || metadata.finalTotal, // Fallback for old data
           finalTotal: metadata.finalTotal,
           amountNow: metadata.amountNow,
           promoCodeId: promoCodeId,
@@ -270,18 +271,20 @@ async function processWebhookAsync(paymentId: string, paymentData?: any) {
           endTime,
         );
 
-        // Calculate pricing for the booking (for breakdown only)
+        // Calculate pricing for the booking (for breakdown only - don't use for pricing!)
         const pricingResult = await PricingService.calculateBookingPrice(
           pendingBooking.date.toISOString(),
           startTime,
           endTime,
         );
 
-        // Use pricing from PendingBooking (it already has discounts applied)
+        // CRITICAL: Use pricing from PendingBooking (locked at payment time)
+        // DO NOT recalculate pricing - it may have changed since payment!
         let promoCodeId = pendingBooking.promoCodeId;
-        const finalPrice = pendingBooking.finalTotal;
-        const totalPrice = pricingResult.finalPrice; // Base price before discounts
-        const discountAmount = totalPrice - finalPrice; // Calculate discount
+        const totalPrice =
+          pendingBooking.originalTotal || pendingBooking.finalTotal; // Original price before discounts
+        const finalPrice = pendingBooking.finalTotal; // Final price after discounts
+        const discountAmount = Math.max(0, totalPrice - finalPrice); // Ensure non-negative discount
 
         // Determine payment status based on payment option
         let paymentStatus: "paid" | "partial";

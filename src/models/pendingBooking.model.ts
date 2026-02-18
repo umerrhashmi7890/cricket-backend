@@ -10,7 +10,8 @@ export interface IPendingBooking extends Document {
   customerPhone: string;
   customerEmail?: string;
   paymentOption: "full" | "partial";
-  finalTotal: number;
+  originalTotal: number; // Price before any discounts
+  finalTotal: number; // Price after discounts
   amountNow: number;
   promoCodeId?: mongoose.Types.ObjectId;
   promoCode?: string;
@@ -41,6 +42,7 @@ const PendingBookingSchema = new Schema<IPendingBooking>(
       enum: ["full", "partial"],
       required: true,
     },
+    originalTotal: { type: Number, required: true },
     finalTotal: { type: Number, required: true },
     amountNow: { type: Number, required: true },
     promoCodeId: {

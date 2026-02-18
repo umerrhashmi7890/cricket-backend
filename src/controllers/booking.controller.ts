@@ -297,7 +297,7 @@ export const createBooking = asyncHandler(
       if (promoValidation.valid && promoValidation.promoCodeId) {
         promoCodeId = promoValidation.promoCodeId;
         discountAmount = promoValidation.discount || 0;
-        finalPrice = promoValidation.finalAmount || pricingResult.finalPrice;
+        finalPrice = promoValidation.finalAmount ?? pricingResult.finalPrice;
       } else {
         console.warn(
           `⚠️ Promo code validation failed: ${promoValidation.message}`,
@@ -485,7 +485,7 @@ export const createManualBooking = asyncHandler(
         if (promoValidation.valid && promoValidation.promoCodeId) {
           promoCodeId = promoValidation.promoCodeId;
           discountAmount = promoValidation.discount || 0;
-          finalPrice = promoValidation.finalAmount || totalPrice;
+          finalPrice = promoValidation.finalAmount ?? totalPrice;
         } else {
           console.warn(
             `⚠️ Promo code validation failed: ${promoValidation.message}`,
