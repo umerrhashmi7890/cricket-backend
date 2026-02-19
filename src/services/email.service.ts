@@ -333,7 +333,14 @@ export class EmailService {
         You have paid ${data.amountPaid} SAR online. Please bring <strong>${data.totalPrice - data.amountPaid} SAR</strong> cash or card to complete payment at the venue.
       </div>
       `
-          : ""
+          : data.paymentStatus === "pending" && data.amountPaid === 0
+            ? `
+      <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <strong>💰 Payment Required at Venue:</strong><br>
+        Please bring <strong>${data.totalPrice} SAR</strong> in cash or card to pay at the venue before your booking time.
+      </div>
+      `
+            : ""
       }
       
       <div style="background: #e8f4f8; border-left: 4px solid #3498db; padding: 15px; margin: 20px 0; border-radius: 4px;">

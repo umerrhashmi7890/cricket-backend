@@ -358,28 +358,55 @@ export const createBooking = asyncHandler(
       .populate("court", "name description")
       .populate("promoCode", "code discountType discountValue");
 
-    // Send confirmation email if payment is completed
-    if (paymentStatus === "paid" && customerEmail) {
-      await EmailService.sendBookingConfirmation({
-        customerName: customerName,
-        customerEmail: customerEmail,
-        customerPhone: customerPhone,
-        bookingId: booking._id.toString(),
-        courtName: court.name,
-        bookingDate: dateObj.toLocaleDateString("en-US", {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }),
-        startTime,
-        endTime,
-        durationHours,
-        totalPrice: finalPrice,
-        amountPaid: amountPaid || 0,
-        paymentStatus: paymentStatus as "pending" | "partial" | "paid",
-        paymentMethod: "Card",
-      });
+    // Send confirmation email for all bookings with email (including venue payments)
+    if (customerEmail) {
+      console.log(
+        "📧 Attempting to send confirmation email for customer booking:",
+        {
+          bookingId: booking._id.toString(),
+          customerEmail: customerEmail,
+          paymentStatus: paymentStatus,
+          amountPaid: amountPaid || 0,
+          finalPrice: finalPrice,
+        },
+      );
+
+      try {
+        const emailSent = await EmailService.sendBookingConfirmation({
+          customerName: customerName,
+          customerEmail: customerEmail,
+          customerPhone: customerPhone,
+          bookingId: booking._id.toString(),
+          courtName: court.name,
+          bookingDate: dateObj.toLocaleDateString("en-US", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }),
+          startTime,
+          endTime,
+          durationHours,
+          totalPrice: finalPrice,
+          amountPaid: amountPaid || 0,
+          paymentStatus: paymentStatus as "pending" | "partial" | "paid",
+          paymentMethod: paymentStatus === "pending" ? undefined : "Card",
+        });
+
+        if (emailSent) {
+          console.log(
+            "✅ Customer booking confirmation email sent successfully",
+          );
+        } else {
+          console.error("❌ Email service returned false for customer booking");
+        }
+      } catch (emailError) {
+        console.error(
+          "❌ Failed to send customer booking confirmation email:",
+          emailError,
+        );
+        // Don't fail the booking creation if email fails
+      }
     }
 
     res.status(201).json({
@@ -540,9 +567,14 @@ export const createManualBooking = asyncHandler(
       .populate("customer", "name phone email")
       .populate("court", "name description");
 
-    // Send confirmation email for non-blocked bookings
+    // Send confirmation email for all non-blocked bookings (including venue payments)
     if (!isBlocked && customerEmail) {
       try {
+        const court = await Court.findById(courtId);
+        if (!court) {
+          throw new NotFoundError("Court");
+        }
+
         await EmailService.sendBookingConfirmation({
           customerName: customerName!,
           customerEmail: customerEmail,
