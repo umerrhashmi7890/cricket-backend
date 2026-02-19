@@ -63,14 +63,33 @@ export class PricingService {
 
   /**
    * Handle midnight boundary (12 AM - 4 AM belongs to previous day)
-   * If time is between 00:00 and 04:00, treat as previous day
+   * IMPORTANT: When calculating booking prices, early morning slots (00:00-04:00)
+   * should use the BOOKING DATE'S pricing, not the previous day.
+   * This function is ONLY for determining if a standalone datetime belongs to the previous day.
+   * For booking price calculations, pass the original booking date directly.
    */
-  private static getEffectiveDate(date: Date): Date {
+  private static getEffectiveDate(date: Date, bookingDate?: Date): Date {
     const hour = date.getHours();
+
     if (hour >= 0 && hour < 4) {
-      // Belongs to previous day
       const effectiveDate = new Date(date);
       effectiveDate.setDate(effectiveDate.getDate() - 1);
+
+      // If bookingDate provided, check if this slot is on the SAME calendar day as booking
+      // Example: Booking Thursday for 02:00 slots → date is Thursday 02:00
+      // After rewinding: Wednesday → but original date is Thursday → use Thursday
+      // BUT: If booking Thursday 23:00-01:00, the 01:00 slot is Friday → after rewinding: Thursday → correct!
+      if (bookingDate) {
+        const bookingDay = bookingDate.getDate();
+        const slotDay = date.getDate(); // Original date BEFORE rewinding
+
+        // If the slot's calendar day matches booking day, user selected this directly
+        // (not a midnight crossing), so use booking date for pricing
+        if (slotDay === bookingDay) {
+          return bookingDate;
+        }
+      }
+
       return effectiveDate;
     }
     return date;
@@ -82,13 +101,14 @@ export class PricingService {
   private static async getPrice(
     date: Date,
     hour: number,
+    bookingDate?: Date,
   ): Promise<{
     price: number;
     days: "sun-wed" | "thu" | "fri" | "sat";
     category: "weekday-day" | "weekday-night" | "weekend-day" | "weekend-night";
     timeSlot: "day" | "night";
   }> {
-    const effectiveDate = this.getEffectiveDate(date);
+    const effectiveDate = this.getEffectiveDate(date, bookingDate);
     const days = this.getDays(effectiveDate);
     const timeSlot = this.getTimeSlot(hour);
     const category = this.getCategory(days, timeSlot);
@@ -204,6 +224,7 @@ export class PricingService {
       const { price, days, category, timeSlot } = await this.getPrice(
         currentTime,
         currentTime.getHours(),
+        dateObj, // Pass original booking date for correct pricing of early morning slots
       );
 
       const slotPrice = price * slotDuration;
