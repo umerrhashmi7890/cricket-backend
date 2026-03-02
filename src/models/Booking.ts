@@ -157,13 +157,14 @@ BookingSchema.index({ court: 1, bookingDate: 1, status: 1 });
 // Index for customer bookings lookup
 BookingSchema.index({ customer: 1, createdAt: -1 });
 
-// Validate that blocked bookings don't require customer
+// Validate customer requirement
+// - Blocked slots are admin placeholders and don't have customers
+// - When blocked slots are cancelled, they still should not require customers
 BookingSchema.pre("save", function (next) {
-  if (this.status === "blocked" && !this.customer) {
-    // Blocked booking without customer is valid
-    next();
-  } else if (this.status !== "blocked" && !this.customer) {
-    // Non-blocked booking must have customer
+  const statusAllowsNoCustomer = ["blocked", "cancelled"];
+
+  if (!this.customer && !statusAllowsNoCustomer.includes(this.status)) {
+    // Active/non-blocked bookings must have customer
     next(new Error("Customer is required for non-blocked bookings"));
   } else {
     next();
